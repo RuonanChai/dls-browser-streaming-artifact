@@ -40,7 +40,7 @@ export const BASELINES = {
 };
 
 export const DEFAULT_ORIGIN_URL =
-  "http://10.120.17.176:8090/examples/streaming-lod/coit-40m-sh1-lod.rad";
+  "http://${EDGE_SERVER_HOST}:8090/examples/streaming-lod/coit-40m-sh1-lod.rad";
 
 export const REMOTE_PROFILE_ID = "cdn1_r2";
 

@@ -15,12 +15,12 @@ export async function loadLabInfrastructure(labPath) {
     labPath || path.join(projectRoot, "vrc-paper", "experiments", "distributed_lab.json");
   const lab = JSON.parse(await fs.readFile(p, "utf8"));
 
-  const hpcBase = String(lab.hpc_asset_base ?? "http://10.120.17.176:8090/examples").replace(
+  const hpcBase = String(lab.hpc_asset_base ?? "http://${EDGE_SERVER_HOST}:8090/examples").replace(
     /\/+$/,
     "",
   );
   const cdn1Base = String(lab.cdn_asset_base ?? "").replace(/\/+$/, "");
-  const cdn2Base = String(lab.cdn2_asset_base ?? "https://storage.googleapis.com/forge-dev-public").replace(
+  const cdn2Base = String(lab.cdn2_asset_base ?? "https://${REMOTE_GCS_URL}/coit-40m-sh1-lod.rad").replace(
     /\/+$/,
     "",
   );

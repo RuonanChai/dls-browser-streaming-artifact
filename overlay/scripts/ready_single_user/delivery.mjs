@@ -204,7 +204,7 @@ export async function resolveDelivery(deliveryKey, matrix) {
 
   if (storageKey === "remote_cos" || storageKey === "remote_cos_server") {
 
-    const cosUrl = process.env.VRC_COS_ASSET_URL || d?.asset_url || "https://streaming-1438331348.cos.ap-guangzhou.myqcloud.com/coit-40m-sh1-lod.rad";
+    const cosUrl = process.env.VRC_COS_ASSET_URL || d?.asset_url || "https://${REMOTE_COS_URL}/coit-40m-sh1-lod.rad";
 
     return {
 

@@ -79,7 +79,7 @@ async function preflightCheck(phase) {
   // 1. Curl GCS asset
   const gcsUrl =
     process.env.VRC_CDN2_ASSET_URL ||
-    "https://storage.googleapis.com/forge-dev-public/asundqui/rad/260217/coit-40m-sh1-lod.rad";
+    "https://${REMOTE_GCS_URL}/coit-40m-sh1-lod.rad";
   const r = spawnSync(
     "curl.exe",
     ["-sI", "--connect-timeout", "12", "-H", "Range: bytes=0-1023", gcsUrl],

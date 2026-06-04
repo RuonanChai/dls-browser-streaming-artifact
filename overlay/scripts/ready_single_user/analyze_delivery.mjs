@@ -181,7 +181,7 @@ async function writeEdgeValidationReport(outDir, trials, deliveryRows, readiness
 
 ## Terminology (required)
 
-- **edge** = controlled **LAN edge node** (e.g. \`http://10.120.17.176:8090\`), same LAN as the laptop. Former internal name \`origin_server\`.
+- **edge** = controlled **LAN edge node** (e.g. \`http://${EDGE_SERVER_HOST}:8090\`), same LAN as the laptop. Former internal name \`origin_server\`.
 - **local** = laptop loopback / local ceiling — excludes network variables; parse/GPU/readiness upper bound only.
 - **remote** = public object storage / CDN direct — motivation for fast-but-empty; **not** solved by edge warm-up alone.
 - **READY-E** = **edge-aware delivery scheduling** on the LAN edge (prewarm base / hot / first-screen; prioritize edge-hit chunks).
@@ -195,7 +195,7 @@ Do **not** write: "origin is not CDN", "origin_server is raw origin", or "origin
 | Question | Answer |
 |----------|--------|
 | Is local only ceiling/control? | ${local.length ? "Yes — delivery_role=local, lowest network p95 expected." : "No local trials in this batch."} |
-| Is edge the former origin_server? | **Yes** — same URL/host (\`10.120.17.176:8090\`), renamed to **edge** in metadata. |
+| Is edge the former origin_server? | **Yes** — same URL/host (\`${EDGE_SERVER_HOST}:8090\`), renamed to **edge** in metadata. |
 | Is edge on the same LAN as the laptop? | **Yes** — by experimental design (LAN HPC edge server). |
 | Does remote direct show fast-but-empty? | ${remote.some((r) => (r.completed_chunks ?? 0) < 5) ? "Likely — check completed_chunks / fast_but_empty in trials." : "Inspect phase_remote_direct trials."} |
 | Edge vs remote network p95 | edge mean p95=${mean(edge.map((r) => r.network_p95_ms))?.toFixed(0) ?? "n/a"} ms; remote=${mean(remote.map((r) => r.network_p95_ms))?.toFixed(0) ?? "n/a"} ms |

@@ -4,7 +4,7 @@
  *
  * Tier labels are observational (timing_heuristic), not separate network paths.
  * - local: in-memory / browser cache hit
- * - edge: LAN edge server (low RTT, e.g. 10.120.17.176)
+ * - edge: LAN edge server (low RTT, e.g. ${EDGE_SERVER_HOST})
  * - remote: high-latency path (heuristic only; true remote uses delivery_role=remote phase)
  */
 (function readyDeliveryBootstrap() {

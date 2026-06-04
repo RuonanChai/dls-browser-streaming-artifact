@@ -44,7 +44,7 @@ async function main() {
   const remoteUrl = remoteResolved.asset_url || DEFAULT_REMOTE_URL;
 
   const checks = [
-    { name: "edge", url: edgeUrl, expected: "10.120.17.176:8090" },
+    { name: "edge", url: edgeUrl, expected: "${EDGE_SERVER_HOST}:8090" },
     { name: "remote", url: remoteUrl, expected: "pub-0429777a95db48e192b4c665413f8eb2.r2.dev" },
   ];
 

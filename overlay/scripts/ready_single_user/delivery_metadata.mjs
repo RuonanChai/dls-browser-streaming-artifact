@@ -32,7 +32,7 @@ export function isLanEdgeUrl(url) {
   try {
     const h = new URL(url).hostname;
     return (
-      h === "10.120.17.176"
+      h === "${EDGE_SERVER_HOST}"
       || h.startsWith("192.168.")
       || h.startsWith("10.")
       || h === "localhost"

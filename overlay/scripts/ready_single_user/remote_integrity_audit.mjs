@@ -264,7 +264,7 @@ async function main() {
     "",
     "```powershell",
     "cd D:\\Program\\spark-main\\spark-main",
-    "$env:VRC_REMOTE_CDN_ASSET_URL = \"https://pub-0429777a95db48e192b4c665413f8eb2.r2.dev/streaming-lod/coit-40m-sh1-lod.rad\"",
+    "$env:VRC_REMOTE_CDN_ASSET_URL = \"https://${REMOTE_CDN_URL}/coit-40m-sh1-lod.rad"",
     "$batch = \"paper_materials/ready_single_user_v1/runs/oracle_integrity_sanity_<timestamp>\"",
     "node scripts/ready_single_user/run.mjs --phase=phase_remote_dev --trials=1 --methods=Spark-OD,Oracle,READY --batchDir=$batch",
     "# After Spark-OD completes:",

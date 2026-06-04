@@ -58,7 +58,7 @@ export const GCS_PROFILE_ID = "cdn2_gcs";
 
 export const CANONICAL_ENDPOINTS = {
 
-  edge_host: "10.120.17.176",
+  edge_host: "${EDGE_SERVER_HOST}",
 
   edge_port: 8090,
 
