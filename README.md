@@ -1,66 +1,70 @@
-# DLS Browser Streaming — Anonymous Experiment Artifact
+# DLS Browser Streaming — Experiment Artifact
 
-本仓库仅包含 **Demand Lookahead Scheduling (DLS)** 的浏览器端实现与最小化测量 harness，用于在 Spark 2.0 上复现实验。**不含**论文出图脚本、READY/Oracle 预取栈、`generate_paper_reports.mjs` 等报告生成代码。
+This repository contains the **Demand Lookahead Scheduling (DLS)** browser implementation and a minimal measurement harness for reproducing experiments on **Spark 2.0**.
 
-详细机制说明见 [`docs/DLS_MECHANISM.md`](docs/DLS_MECHANISM.md)。
+It includes **measurement code only** — no figure plotting scripts, READY/Oracle prefetch stack, or report generators such as `generate_paper_reports.mjs`.
+
+For a full description of the DLS mechanism, see [`docs/DLS_MECHANISM.md`](docs/DLS_MECHANISM.md).
 
 ---
 
-## 仓库结构
+## Repository layout
 
 ```
 overlay/
   src/
-    SplatPager.ts          # DLS gate + lookahead 入队（driveFetchers）
-    SparkRenderer.ts       # 每帧重建 fetchPriority（可见 chunk 在队首）
+    SplatPager.ts          # DLS gate + lookahead enqueue (driveFetchers)
+    SparkRenderer.ts       # Per-frame fetchPriority rebuild (visible chunks first)
   config/ready_single_user/
-    experiment_matrix.json # 仅 DLS 相关 phase（Spark-OD + DLS 变体）
+    experiment_matrix.json # DLS-only phases (Spark-OD + DLS variants)
   scripts/ready_single_user/
-    run.mjs                # 批量 trial 调度
-    trial_cell.mjs         # 单次 trial（Playwright + CDP）
-    analyze.mjs            # 汇总 per_trial_json → dls_summary.csv
-    constants.mjs          # baseline 定义（spark_od, dls, dls_l, dls_a）
-    delivery.mjs           # 资产 URL 解析（环境变量 / matrix）
-    cdp_enrich.mjs         # CDP 与 chunk probe 对齐
+    run.mjs                # Batch trial scheduler
+    trial_cell.mjs         # Single trial (Playwright + CDP)
+    analyze.mjs            # Aggregate per_trial_json → dls_summary.csv
+    constants.mjs          # Baselines: spark_od, dls, dls_l, dls_a
+    delivery.mjs           # Asset URL resolution (env vars / matrix)
+    cdp_enrich.mjs         # Align CDP rows with chunk probe states
     matrix.mjs, gates.mjs, trace_replay.mjs, ...
   scripts/lib/
-    local_stutter_ablation_cell.mjs   # 浏览器 ablation 主循环
-    local_stutter_ablation_html.mjs   # 注入 chunk 计时 probe（无 READY）
-    proactive_chunk_probe.js          # chunk 级 fetch/parse/upload 时间线
+    local_stutter_ablation_cell.mjs   # Browser ablation main loop
+    local_stutter_ablation_html.mjs   # Inject chunk timing probe (no READY stack)
+    proactive_chunk_probe.js          # Per-chunk fetch/parse/upload timeline
     ablation_*.js, local_stutter_*.mjs
   vrc-paper/experiments/
     cdp_network_audit.mjs, audit_io.mjs
-install_overlay.sh         # 将 overlay 复制到 Spark 源码树
-docs/DLS_MECHANISM.md      # DLS 全套工作机制（推荐阅读）
+install_overlay.sh         # Copy overlay onto a Spark checkout
+docs/DLS_MECHANISM.md      # Full DLS mechanism reference
 ```
 
-**不包含：** LaTeX、`plot_*.py`、截图合成、原始 `paper_materials/` 输出（运行实验后本地生成）。
+**Not included:** LaTeX sources, `plot_*.py` figure scripts, screenshot composers, or raw `paper_materials/` trial outputs (generated locally when you run experiments).
 
 ---
 
-## 前置条件
+## Prerequisites
 
-| 组件 | 要求 |
-|------|------|
+| Component | Requirement |
+|-----------|-------------|
 | Node.js | ≥ 18 |
-| Spark 2.0 | 公开仓库 [sparkjs.dev](https://sparkjs.dev/)，`npm install && npm run build` 可成功 |
-| Playwright | 随 Spark 依赖安装 |
-| GPU | 建议 NVIDIA + 物理 Chrome（harness 默认 RTX 类笔记本参数） |
-| 远程资产 | 支持 HTTP Range (206) 的 `.rad` URL（论文默认 Coit Tower 40M LOD） |
-| 可选 | `VRC_RAD_MANIFEST_CSV` — chunk 字节范围 manifest（CDP 对齐用） |
+| Spark 2.0 | Public repo at [sparkjs.dev](https://sparkjs.dev/); `npm install && npm run build` must succeed |
+| Playwright | Installed via Spark dependencies |
+| GPU | NVIDIA + physical Chrome recommended (harness tuned for RTX-class laptops) |
+| Remote asset | `.rad` URL with HTTP Range (206) support (default: Coit Tower 40M LOD) |
+| Optional | `VRC_RAD_MANIFEST_CSV` — byte-range manifest for CDP ↔ chunk alignment |
 
 ---
 
-## 快速开始
+## Quick start
 
-### 1. 克隆 Spark 与本 artifact
+### 1. Clone Spark and this artifact
 
 ```bash
 git clone https://github.com/sparkjsdev/spark.git spark-dls-eval
-git clone <THIS_ANONYMOUS_REPO_URL> dls-artifact
+git clone <ARTIFACT_REPO_URL> dls-artifact
 ```
 
-### 2. 安装 overlay
+Use the artifact URL provided in the paper (e.g. an Anonymous GitHub mirror).
+
+### 2. Install overlay
 
 ```bash
 bash dls-artifact/install_overlay.sh spark-dls-eval
@@ -69,113 +73,120 @@ npm install
 npm run build
 ```
 
-`install_overlay.sh` 会覆盖 Spark 中的 `src/SplatPager.ts`、`src/SparkRenderer.ts`，并安装 `scripts/ready_single_user/` 与 `scripts/lib/` 下的 harness 文件。
+This overwrites `src/SplatPager.ts` and `src/SparkRenderer.ts` in Spark and installs harness scripts under `scripts/ready_single_user/` and `scripts/lib/`.
 
-### 3. 配置交付 URL
+### 3. Configure delivery URLs
 
-通过环境变量（推荐）或编辑 `config/ready_single_user/experiment_matrix.json`：
+Set environment variables (recommended) or edit `config/ready_single_user/experiment_matrix.json`:
 
 ```bash
-# 远程 COS / 对象存储（论文主结果）
+# Remote object storage (main paper experiments)
 export REMOTE_COS_URL="https://your-bucket.cos.ap-region.myqcloud.com/coit-40m-sh1-lod.rad"
 
-# 可选：LAN edge（safety phase 或本地对照）
+# Optional: LAN edge (safety phase or local comparison)
 export EDGE_SERVER_HOST="10.x.x.x"
 export EDGE_ASSET_URL="http://${EDGE_SERVER_HOST}:8090/examples/streaming-lod/coit-40m-sh1-lod.rad"
 
-# chunk 字节范围 manifest（CDP ↔ chunk 对齐）
+# Public smoke-test asset (no author-specific bucket required):
+# export REMOTE_COS_URL="https://storage.googleapis.com/forge-dev-public/asundqui/rad/260217/coit-40m-sh1-lod.rad"
+
+# Chunk byte-range manifest (CDP alignment)
 export VRC_RAD_MANIFEST_CSV="/path/to/rad_manifest.csv"
 ```
 
-### 4. 运行实验 batch
+**Do not commit real COS URLs or lab IPs.** The repository uses placeholders; inject secrets at runtime via env vars.
 
-在 Spark 仓库根目录：
+### 4. Run an experiment batch
+
+From the Spark repo root:
 
 ```bash
-# 主结果：burst_turn trace，n=5，Spark-OD vs DLS / DLS-L / DLS-A
+# Main result: burst_turn trace, n=5, Spark-OD vs DLS / DLS-L / DLS-A
 node scripts/ready_single_user/run.mjs --phase=dls-main-burst-cos-n5 --trials=5
 
-# 仅跑 Spark-OD 与 DLS(K=4)
+# Spark-OD vs DLS (K=4) only
 node scripts/ready_single_user/run.mjs --phase=dls-main-burst-cos-n5 --trials=5 --methods=spark_od,dls
 
-# Trace 鲁棒性（4 traces × 2 baselines × n=3）
+# Trace robustness (4 traces × 2 baselines × n=3)
 node scripts/ready_single_user/run.mjs --phase=dls-trace-robustness-gated --trials=3
 
-# Safety：低延迟 / 无 throttle 下 DLS 不劣化 Spark-OD
+# Safety: gated DLS under low-latency / native COS conditions
 node scripts/ready_single_user/run.mjs --phase=dls-safety-strict-gate --trials=3
 ```
 
-输出目录默认：`paper_materials/dls_eval_v1/runs/<phase>/`
+Default output: `paper_materials/dls_eval_v1/runs/<phase>/`
 
-每个 trial 产生：
+Each trial produces:
 
-- `per_trial_json/<trial_id>.json` — 汇总指标
-- `per_trial_runs/<trial_id>/cdp_network_audit.csv` — CDP 逐请求网络审计
-- `per_trial_runs/<trial_id>/` — Playwright trace、probe 快照等
+- `per_trial_json/<trial_id>.json` — aggregated metrics
+- `per_trial_runs/<trial_id>/cdp_network_audit.csv` — per-request CDP network audit
+- `per_trial_runs/<trial_id>/` — Playwright trace, probe snapshots, etc.
 
-### 5. 汇总指标（CSV，非论文报告）
+### 5. Aggregate metrics (CSV only)
 
 ```bash
 node scripts/ready_single_user/analyze.mjs \
   --batchDir=paper_materials/dls_eval_v1/runs/dls-main-burst-cos-n5
 ```
 
-生成 `dls_summary.csv`：按 phase × baseline 聚合 first-visible、T1M、miss100、CDP net_p50 等。
+Writes `dls_summary.csv` with per-phase × baseline aggregates (first-visible, T1M, miss100, CDP net_p50, …).
 
 ---
 
-## Baseline 与运行时参数
+## Baselines and runtime knobs
 
-| baseline_id | 名称 | `window.__sparkSdlK` | 含义 |
-|-------------|------|----------------------|------|
-| `spark_od` | Spark-OD | 0 | Spark 原生 on-demand，无 lookahead |
-| `dls` | DLS | 4 | 论文主配置（gated lookahead） |
-| `dls_l` | DLS-L | 2 | K 消融（浅 lookahead） |
-| `dls_a` | DLS-A | 8 | K 消融（深 lookahead） |
+| baseline_id | Name | `window.__sparkSdlK` | Description |
+|-------------|------|----------------------|-------------|
+| `spark_od` | Spark-OD | 0 | Native Spark on-demand; no lookahead |
+| `dls` | DLS | 4 | Paper configuration (gated lookahead) |
+| `dls_l` | DLS-L | 2 | K ablation (shallow lookahead) |
+| `dls_a` | DLS-A | 8 | K ablation (deep lookahead) |
 
-Harness 在 Playwright `addInitScript` 中注入 `window.__sparkSdlK`（见 `local_stutter_ablation_cell.mjs`）。**不**启用 READY、Oracle 或 proactive prefetch controller。
-
----
-
-## 实验 Phase 一览
-
-| Phase key | 内容 |
-|-----------|------|
-| `dls-main-burst-cos-n5` | 主结果：remote COS，`burst_turn`，5 trials × 4 baselines |
-| `dls-trace-robustness-gated` | 4 条 camera trace，Spark-OD vs DLS，各 3 trials |
-| `dls-safety-strict-gate` | `LAN-like` / `No-Throttle` 网络 profile，验证 gated DLS 安全性 |
+The harness injects `window.__sparkSdlK` via Playwright `addInitScript` in `local_stutter_ablation_cell.mjs`. READY, Oracle, and proactive prefetch controllers are **not** used.
 
 ---
 
-## DLS 实现要点（摘要）
+## Experiment phases
 
-完整说明见 [`docs/DLS_MECHANISM.md`](docs/DLS_MECHANISM.md)。
-
-1. **每帧 demand 重建**（`SparkRenderer.ts`）：按当前视锥可见性重建 `fetchPriority`，可见 chunk 排在队首。
-2. **Strict gate lookahead**（`SplatPager.driveFetchers()`）：仅当 `activeFetchers === 0` 且 `fetchPriority.length === 0`（管线完全空闲）时，在队尾追加最多 K 个连续 chunk（c+1 … c+K）。
-3. **不抢占 demand**：lookahead 永远在队尾；in-flight 的 lookahead 占满 3 个 fetcher slot 时，新 demand 需排队（论文中的 yield 来源）。
-4. **测量**：chunk probe 记录 demand / fetch / parse / upload 时间戳；CDP 记录裸 HTTP `download_ms`（net_p50）。
-
----
-
-## 匿名投稿
-
-见 [`ANONYMOUS_SUBMISSION.md`](ANONYMOUS_SUBMISSION.md)。建议仓库名避免论文标题/作者关键词，例如 `dls-browser-streaming-artifact`。
+| Phase key | Description |
+|-----------|-------------|
+| `dls-main-burst-cos-n5` | Main result: remote COS, `burst_turn`, 5 trials × 4 baselines |
+| `dls-trace-robustness-gated` | 4 camera traces, Spark-OD vs DLS, 3 trials each |
+| `dls-safety-strict-gate` | `LAN-like` / `No-Throttle` profiles; gated DLS safety check |
 
 ---
 
-## 故障排查
+## DLS implementation (summary)
 
-| 现象 | 检查项 |
-|------|--------|
-| `No 206/rad activity` | 资产 URL 可达、支持 Range；`curl -I` 返回 206/200 |
-| CDP audit 为空 | `VRC_TRACE_CHROME` 未设为 `0`；Chrome 能启动 |
-| chunk 对齐差 | 设置 `VRC_RAD_MANIFEST_CSV` |
-| SwiftShader gate fail | 使用物理 GPU + 非 headless Chrome |
-| 端口冲突 | 重启或清理残留 Chrome / 本地 proxy 进程 |
+See [`docs/DLS_MECHANISM.md`](docs/DLS_MECHANISM.md) for the full reference.
+
+1. **Per-frame demand rebuild** (`SparkRenderer.ts`): rebuild `fetchPriority` from current frustum visibility; visible chunks at queue head.
+2. **Strict-gate lookahead** (`SplatPager.driveFetchers()`): append up to K sequential chunks (c+1…c+K) at queue tail only when `activeFetchers === 0` and `fetchPriority.length === 0`.
+3. **No demand preemption**: lookahead always at tail; in-flight lookahead can fill all 3 fetcher slots and delay new demand (DLS yield).
+4. **Measurement**: chunk probe timestamps for demand/fetch/parse/upload; CDP records raw HTTP `download_ms` (net_p50).
+
+---
+
+## Troubleshooting
+
+| Symptom | Check |
+|---------|-------|
+| `No 206/rad activity` | Asset URL reachable and Range-capable; `curl -I` returns 206/200 |
+| Empty CDP audit | `VRC_TRACE_CHROME` not set to `0`; Chrome launches successfully |
+| Poor chunk alignment | Set `VRC_RAD_MANIFEST_CSV` |
+| SwiftShader gate failure | Use physical GPU + non-headless Chrome |
+| Port conflicts | Restart or kill stale Chrome / local proxy processes |
+
+---
+
+## Reproducing paper numbers
+
+1. Match phase ID and trial count `n` from the paper tables.
+2. Compare **within-batch** Spark-OD vs DLS deltas (absolute Q5 varies across days/sessions).
+3. Gap decomposition and demand-timeline figures are derived offline in a separate writing repo; this artifact provides raw trial JSON + CDP CSV only.
 
 ---
 
 ## License
 
-MIT — 见 [LICENSE](LICENSE)。Spark 上游许可证独立。
+MIT — see [LICENSE](LICENSE). Spark is licensed separately by its upstream authors.
