@@ -1,0 +1,829 @@
+{
+  "name": "ready_single_user",
+  "paper_title": "READY: Readiness-Aware Delivery for Interactive 3D Gaussian Splatting",
+  "scenario": "single_user_cold_start",
+  "warmup_ms": 0,
+  "move_ms": 40000,
+  "timeout_ms": 1200000,
+  "prefetch_budget_bytes": 134217728,
+  "parse_budget_chunks_per_sec": 24,
+  "default_prediction_horizon_ms": 2000,
+  "ready_event_policy": "parse_or_upload",
+  "default_trace": "orbit",
+  "traces": {
+    "orbit": {
+      "id": "orbit",
+      "replay": "orbit"
+    },
+    "stop_go": {
+      "id": "stop_go",
+      "replay": "stop_go"
+    },
+    "burst_turn": {
+      "id": "burst_turn",
+      "replay": "burst_turn"
+    },
+    "random_walk": {
+      "id": "random_walk",
+      "replay": "random_walk"
+    }
+  },
+  "network_profiles": {
+    "WAN-M": {
+      "rtt_ms": 40,
+      "bandwidth_mbps": 100
+    },
+    "WAN-S": {
+      "rtt_ms": 80,
+      "bandwidth_mbps": 50
+    },
+    "WAN-H": {
+      "rtt_ms": 150,
+      "bandwidth_mbps": 20
+    },
+    "LAN-like": {
+      "rtt_ms": 20,
+      "bandwidth_mbps": 500
+    },
+    "No-Throttle": {
+      "rtt_ms": 0,
+      "bandwidth_mbps": 0,
+      "note": "No CDP throttle - use real COS latency (~145ms)"
+    }
+  },
+  "deliveries": {
+    "edge_server": {
+      "profile_id": "edge_server",
+      "delivery_role": "edge",
+      "display_name": "LAN edge server (same LAN as laptop)",
+      "asset_url": "http://${EDGE_SERVER_HOST}:8090/examples/streaming-lod/coit-40m-sh1-lod.rad"
+    },
+    "origin_server": {
+      "profile_id": "edge_server",
+      "delivery_role": "edge",
+      "display_name": "alias of edge_server",
+      "asset_url": "http://${EDGE_SERVER_HOST}:8090/examples/streaming-lod/coit-40m-sh1-lod.rad"
+    },
+    "local_disk": {
+      "profile_id": "local_disk",
+      "delivery_role": "local",
+      "display_name": "local ceiling / loopback",
+      "note": "browser-side control; excludes network variables"
+    },
+    "remote_server": {
+      "profile_id": "remote_server",
+      "delivery_role": "remote",
+      "display_name": "public remote / CDN direct (Cloudflare R2)",
+      "use_profile": "cdn1_r2",
+      "asset_url": "https://${REMOTE_CDN_URL}/coit-40m-sh1-lod.rad",
+      "note": "Resolved via distributed_lab.json cdn_asset_base; override with VRC_REMOTE_CDN_ASSET_URL"
+    },
+    "remote_gcs": {
+      "profile_id": "cdn2_gcs",
+      "delivery_role": "remote",
+      "display_name": "public remote object storage (Google Cloud Storage)",
+      "asset_url": "https://${REMOTE_CDN_URL}/coit-40m-sh1-lod.rad",
+      "note": "Override with VRC_CDN2_ASSET_URL env var"
+    },
+    "remote_cos": {
+      "profile_id": "cdn3_cos",
+      "delivery_role": "remote",
+      "display_name": "Tencent COS (Guangzhou)",
+      "asset_url": "https://${REMOTE_COS_URL}/coit-40m-sh1-lod.rad",
+      "note": "Tencent Cloud Object Storage, ap-guangzhou region"
+    }
+  },
+  "phases": {
+    "phase_local_ceiling": {
+      "delivery": "local",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "ready_p",
+        "ready_e",
+        "ready_g",
+        "ready",
+        "oracle"
+      ],
+      "trials_per_baseline": 1,
+      "startup_mode": "cold",
+      "warmup_mode": "none",
+      "interleave": true,
+      "deprecated": true
+    },
+    "phase_edge_cold": {
+      "delivery": "edge",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "naive_pf",
+        "progs",
+        "sgss",
+        "ready_p",
+        "ready_e",
+        "ready_g",
+        "ready",
+        "oracle"
+      ],
+      "trials_per_baseline": 1,
+      "startup_mode": "cold",
+      "warmup_mode": "none",
+      "interleave": true,
+      "deprecated": true
+    },
+    "phase_edge_warm_ready": {
+      "delivery": "edge",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "naive_pf",
+        "ready_p",
+        "ready_e",
+        "ready_g",
+        "ready",
+        "oracle"
+      ],
+      "trials_per_baseline": 1,
+      "startup_mode": "warm_edge",
+      "warmup_mode": "base_hot_first_screen",
+      "warmup_ms": 8000,
+      "interleave": true,
+      "deprecated": true
+    },
+    "phase_ready_ablation_on_edge": {
+      "delivery": "edge",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "ready_p",
+        "ready_e",
+        "ready_g",
+        "ready",
+        "oracle"
+      ],
+      "trials_per_baseline": 1,
+      "startup_mode": "cold",
+      "warmup_mode": "none",
+      "interleave": true,
+      "deprecated": true
+    },
+    "phase_remote_direct": {
+      "deprecated": true,
+      "alias_of": "phase_remote_direct_cold",
+      "delivery": "remote",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "naive_pf",
+        "ready_p",
+        "ready_e",
+        "ready_g",
+        "ready",
+        "oracle"
+      ],
+      "trials_per_baseline": 1,
+      "startup_mode": "cold",
+      "warmup_mode": "none",
+      "interleave": true,
+      "note": "Use phase_remote_direct_cold; split infra vs claim gates."
+    },
+    "phase_remote_direct_cold": {
+      "delivery": "remote",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "naive_pf",
+        "ready_p",
+        "ready_e",
+        "ready_g",
+        "ready",
+        "oracle"
+      ],
+      "trials_per_baseline": 1,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "interleave": "round_robin_by_trial_index",
+        "cache": "public_cdn_uncontrolled_cold_or_mixed",
+        "no_fallback": true
+      },
+      "note": "Paper primary scene. remote_infra_gate != remote_claim_gate.",
+      "deprecated": true
+    },
+    "phase_remote_warm_equal": {
+      "delivery": "remote",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "ready_p",
+        "ready_e",
+        "ready_g",
+        "ready",
+        "oracle"
+      ],
+      "trials_per_baseline": 1,
+      "startup_mode": "warm_remote_equal",
+      "warmup_mode": "remote_equal_warm",
+      "warmup_ms": 8000,
+      "interleave": true,
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "warmup": "same_byte_ranges_all_methods_before_measure",
+        "cache": "equal_warm_state_then_compare",
+        "no_fallback": true
+      },
+      "deprecated": true
+    },
+    "phase_remote_dev": {
+      "delivery": "remote",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "naive_pf",
+        "ready_p",
+        "ready_e",
+        "ready_g",
+        "ready",
+        "oracle"
+      ],
+      "trials_per_baseline": 5,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "auto_fix_allowed": true,
+      "max_design_iterations": 3,
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "interleave": "round_robin_by_trial_index",
+        "cache": "public_cdn_uncontrolled_cold_or_mixed",
+        "no_fallback": true
+      },
+      "note": "Dev/validation only \u2014 auto-fix allowed; not final paper numbers.",
+      "deprecated": true
+    },
+    "phase_remote_validation": {
+      "delivery": "remote",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "ready_p",
+        "ready_e",
+        "ready_g",
+        "ready",
+        "oracle"
+      ],
+      "trials_per_baseline": 10,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "auto_fix_allowed": true,
+      "max_design_iterations": 3,
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "interleave": "round_robin_by_trial_index",
+        "no_fallback": true
+      },
+      "note": "Limited auto-fix; freeze code after GREEN before test_main.",
+      "deprecated": true
+    },
+    "phase_remote_test_main": {
+      "delivery": "remote",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "ready_p",
+        "ready_e",
+        "ready_g",
+        "ready",
+        "oracle"
+      ],
+      "trials_per_baseline": 10,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "auto_fix_allowed": false,
+      "code_frozen": true,
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "interleave": "round_robin_by_trial_index",
+        "no_fallback": true
+      },
+      "note": "Final paper batch \u2014 analyze only after run; no controller tuning for GREEN.",
+      "deprecated": true
+    },
+    "phase_delivery_compare": {
+      "deliveries": [
+        "local",
+        "edge",
+        "remote"
+      ],
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "ready_p",
+        "ready_e",
+        "ready"
+      ],
+      "trials_per_baseline": 1,
+      "startup_mode": "cold",
+      "warmup_mode": "none",
+      "interleave": false,
+      "deprecated": true
+    },
+    "phase_delivery_path_sanity": {
+      "deliveries": [
+        "local",
+        "edge",
+        "remote",
+        "remote_gcs"
+      ],
+      "trace": "orbit",
+      "baselines": [
+        "spark_od"
+      ],
+      "trials_per_baseline": 5,
+      "startup_mode": "cold",
+      "warmup_mode": "none",
+      "interleave": true,
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "interleave": "round_robin_by_trial_index"
+      },
+      "note": "Paired interleaved: t0(local,edge,r2,gcs), t1(local,edge,r2,gcs)... to minimize time-of-day bias",
+      "deprecated": true
+    },
+    "phase_remote_gcs_dev": {
+      "delivery": "remote_gcs",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "naive_pf",
+        "progs",
+        "sgss",
+        "ready_p",
+        "ready_e",
+        "ready_g",
+        "ready",
+        "oracle"
+      ],
+      "trials_per_baseline": 5,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "auto_fix_allowed": true,
+      "max_design_iterations": 3,
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "interleave": "round_robin_by_trial_index",
+        "cache": "public_cdn_uncontrolled_cold_or_mixed",
+        "no_fallback": true
+      },
+      "note": "READY vs Spark-OD on GCS remote. Primary gate: quality@5s, time_to_1M, blank_ratio.",
+      "deprecated": true
+    },
+    "phase_remote_p04_sanity": {
+      "delivery": "remote_cos",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "naive_pf",
+        "ready_b",
+        "ready_p",
+        "ready_c",
+        "ready_r",
+        "ready",
+        "ready_s"
+      ],
+      "trials_per_baseline": 3,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "auto_fix_allowed": true,
+      "max_design_iterations": 3,
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "interleave": "round_robin_by_trial_index",
+        "cache": "public_cdn_uncontrolled_cold_or_mixed",
+        "no_fallback": true
+      },
+      "note": "P0-4 canonical 8-baseline mechanism sanity on COS (n=3). RTT~145ms, BW sufficient for prefetch.",
+      "deprecated": true
+    },
+    "phase_remote_main_ablation": {
+      "delivery": "remote_cos",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "ready",
+        "ready_ds"
+      ],
+      "trials_per_baseline": 5,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "auto_fix_allowed": false,
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "interleave": "round_robin_by_trial_index",
+        "cache": "public_cdn_uncontrolled_cold_or_mixed",
+        "no_fallback": true
+      },
+      "note": "P1-1 main ablation on COS (n=5). Spark-OD baseline + naive READY (competition failure) + READY-DS (demand-safe, paper method).",
+      "deprecated": true
+    },
+    "phase_origin_control": {
+      "deprecated": true,
+      "alias_of": "phase_edge_cold",
+      "delivery": "edge",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "ready"
+      ],
+      "trials_per_baseline": 1,
+      "startup_mode": "cold",
+      "warmup_mode": "none"
+    },
+    "phaseA_sanity": {
+      "deprecated": true,
+      "alias_of": "phase_edge_cold",
+      "delivery": "edge",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "ready"
+      ],
+      "trials_per_baseline": 1,
+      "startup_mode": "cold",
+      "warmup_mode": "none",
+      "interleave": false
+    },
+    "phaseB_mini": {
+      "deprecated": true,
+      "alias_of": "phase_edge_cold",
+      "delivery": "edge",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "naive_pf",
+        "progs",
+        "sgss",
+        "ready_p",
+        "ready",
+        "oracle"
+      ],
+      "trials_per_baseline": 1,
+      "startup_mode": "cold",
+      "warmup_mode": "none",
+      "interleave": true
+    },
+    "phaseB_main": {
+      "deprecated": true,
+      "alias_of": "phase_edge_cold",
+      "delivery": "edge",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "naive_pf",
+        "progs",
+        "sgss",
+        "ready_p",
+        "ready",
+        "oracle"
+      ],
+      "trials_per_baseline": 5,
+      "startup_mode": "cold",
+      "warmup_mode": "none",
+      "interleave": true
+    },
+    "phaseC_ablation": {
+      "deprecated": true,
+      "alias_of": "phase_ready_ablation_on_edge",
+      "delivery": "edge",
+      "trace": "orbit",
+      "baselines": [
+        "ready",
+        "ready_p",
+        "ready_e",
+        "ready_g"
+      ],
+      "trials_per_baseline": 1,
+      "startup_mode": "cold",
+      "warmup_mode": "none",
+      "interleave": true
+    },
+    "phase_rtt_sensitivity": {
+      "delivery": "remote_cos",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "ready_b",
+        "ready"
+      ],
+      "trials_per_baseline": 3,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "network_profiles": [
+        "LAN-like",
+        "WAN-M",
+        "WAN-S",
+        "WAN-H",
+        "No-Throttle"
+      ],
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "interleave": "round_robin_by_trial_index",
+        "no_fallback": true
+      },
+      "note": "P1-2 RTT sensitivity on COS: 5 network conditions x 3 baselines x n=3. Real-GCS = no throttle (use COS native ~145ms RT).",
+      "deprecated": true
+    },
+    "phase_cos_verify": {
+      "delivery": "remote_cos",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "ready_ds"
+      ],
+      "trials_per_baseline": 1,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "interleave": "round_robin_by_trial_index",
+        "no_fallback": true
+      },
+      "note": "Verify Spark 2.0 + READY on Tencent COS before full experiment restart.",
+      "deprecated": true
+    },
+    "phase_spark_baseline_verify": {
+      "deliveries": [
+        "local_disk",
+        "edge_server",
+        "remote_cos"
+      ],
+      "trace": "orbit",
+      "baselines": [
+        "spark_od"
+      ],
+      "trials_per_baseline": 1,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "interleave": "round_robin_by_trial_index"
+      },
+      "note": "Step 1: Verify Spark 2.0 baseline on local/edge/COS-remote before READY experiments.",
+      "deprecated": true
+    },
+    "phase_coalesce_experiment": {
+      "delivery": "remote_cos",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "coalesce_2",
+        "coalesce_4"
+      ],
+      "trials_per_baseline": 5,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "interleave": "round_robin_by_trial_index",
+        "no_fallback": true
+      },
+      "note": "Range Coalescing experiment: Spark-OD (K=1) vs Coalesce-2 (K=2) vs Coalesce-4 (K=4) on COS remote.",
+      "deprecated": true
+    },
+    "phase_sdl_experiment": {
+      "delivery": "remote_cos",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "sdl_2",
+        "sdl_4",
+        "sdl_8"
+      ],
+      "trials_per_baseline": 5,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "interleave": "round_robin_by_trial_index",
+        "no_fallback": true
+      },
+      "note": "SDL experiment: Spark-OD (K=0) vs SDL-2/4/8 on COS remote. Measures demand-frontier lookahead gain.",
+      "deprecated": true
+    },
+    "phase_sdl_local_verify": {
+      "delivery": "remote_cos",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "sdl_4"
+      ],
+      "trials_per_baseline": 3,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "network_profiles": [
+        "LAN-like",
+        "No-Throttle"
+      ],
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "interleave": "round_robin_by_trial_index",
+        "no_fallback": true
+      },
+      "note": "Verify SDL-4 does not hurt under low-latency (LAN-like throttle) and normal COS.",
+      "deprecated": true
+    },
+    "spark-3scenario-local-edge-cos": {
+      "deliveries": [
+        "local_disk",
+        "edge_server",
+        "remote_cos"
+      ],
+      "trace": "orbit",
+      "baselines": [
+        "spark_od"
+      ],
+      "trials_per_baseline": 3,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "interleave": "round_robin_by_trial_index"
+      },
+      "note": "P0: Spark-OD baseline on local/edge/COS. Establishes remote readiness gap."
+    },
+    "gap-decomposition-cos-n5": {
+      "delivery": "remote_cos",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od"
+      ],
+      "trials_per_baseline": 5,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "no_fallback": true
+      },
+      "note": "P1a: Gap decomposition source data. Per-chunk critical-path analysis done offline."
+    },
+    "failed-approaches-cos-n5": {
+      "delivery": "remote_cos",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "seq_pf",
+        "view_pf",
+        "dec_ahead",
+        "range_fuse"
+      ],
+      "trials_per_baseline": 5,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "interleave": "round_robin_by_trial_index",
+        "no_fallback": true
+      },
+      "note": "P1b: Failed approaches characterization. All expected to lose vs Spark-OD."
+    },
+    "dls-main-cos-n5": {
+      "delivery": "remote_cos",
+      "trace": "orbit",
+      "baselines": [
+        "spark_od",
+        "progs",
+        "sgss",
+        "dls",
+        "dls_l",
+        "dls_a"
+      ],
+      "trials_per_baseline": 5,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "interleave": "round_robin_by_trial_index",
+        "no_fallback": true
+      },
+      "note": "P2: DLS main result. Spark-OD + SOTA (PRoGS, SGSS) + DLS + K-ablation (DLS-L, DLS-A)."
+    },
+    "dls-trace-robustness": {
+      "delivery": "remote_cos",
+      "baselines": [
+        "spark_od",
+        "dls"
+      ],
+      "trials_per_baseline": 3,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "traces": [
+        "orbit",
+        "stop_go",
+        "burst_turn",
+        "random_walk"
+      ],
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "interleave": "round_robin_by_trial_index",
+        "no_fallback": true
+      },
+      "note": "P3a: DLS trace robustness. 4 traces x 2 baselines x n=3."
+    },
+    "dls-scene-robustness": {
+      "delivery": "remote_cos",
+      "baselines": [
+        "spark_od",
+        "dls"
+      ],
+      "trials_per_baseline": 3,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "optional": true,
+      "note": "P3b: Scene robustness (OPTIONAL). Only run if extra .rad scenes on COS."
+    },
+    "dls-safety-lan-cos": {
+      "delivery": "remote_cos",
+      "baselines": [
+        "spark_od",
+        "dls"
+      ],
+      "trials_per_baseline": 3,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "network_profiles": [
+        "LAN-like",
+        "No-Throttle"
+      ],
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "interleave": "round_robin_by_trial_index",
+        "no_fallback": true
+      },
+      "note": "P3c: DLS safety. Claim: DLS does not materially degrade low-latency delivery."
+    },
+    "dls-main-burst-cos-n5": {
+      "delivery": "remote_cos",
+      "trace": "burst_turn",
+      "baselines": [
+        "spark_od",
+        "progs",
+        "sgss",
+        "dls",
+        "dls_l",
+        "dls_a"
+      ],
+      "trials_per_baseline": 5,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "interleave": "round_robin_by_trial_index",
+        "no_fallback": true
+      },
+      "note": "P2 main result: gated DLS on burst_turn trace (bursty motion). DLS is gated variant (K=4). DLS-L/DLS-A are ablation only."
+    },
+    "dls-safety-gated": {
+      "delivery": "remote_cos",
+      "trace": "burst_turn",
+      "baselines": [
+        "spark_od",
+        "dls"
+      ],
+      "trials_per_baseline": 3,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "network_profiles": [
+        "LAN-like",
+        "No-Throttle"
+      ],
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "interleave": "round_robin_by_trial_index",
+        "no_fallback": true
+      },
+      "note": "P3c safety: gated DLS does not materially degrade under low-latency or native COS."
+    }
+  }
+}

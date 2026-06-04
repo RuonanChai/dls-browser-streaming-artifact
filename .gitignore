@@ -1,0 +1,31 @@
+# Dependencies / build (when overlaid on Spark)
+node_modules/
+dist/
+rust/target/
+
+# Experiment outputs (too large; not part of artifact)
+paper_materials/
+runs/
+*.png
+*.pdf
+*.mp4
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Secrets / local lab config
+.env
+.env.*
+**/distributed_lab.json
+!**/distributed_lab.example.json
+
+# Playwright / browser profiles
+.playwright/
+user-data-*/
+
+# Logs
+*.log
+npm-debug.log*
