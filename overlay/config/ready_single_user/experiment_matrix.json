@@ -1,0 +1,111 @@
+{
+  "name": "dls_eval",
+  "scenario": "single_user_cold_start",
+  "warmup_ms": 0,
+  "move_ms": 40000,
+  "timeout_ms": 1200000,
+  "prefetch_budget_bytes": 134217728,
+  "parse_budget_chunks_per_sec": 24,
+  "default_prediction_horizon_ms": 2000,
+  "ready_event_policy": "parse_or_upload",
+  "default_trace": "burst_turn",
+  "traces": {
+    "orbit": {
+      "id": "orbit",
+      "replay": "orbit"
+    },
+    "stop_go": {
+      "id": "stop_go",
+      "replay": "stop_go"
+    },
+    "burst_turn": {
+      "id": "burst_turn",
+      "replay": "burst_turn"
+    },
+    "random_walk": {
+      "id": "random_walk",
+      "replay": "random_walk"
+    }
+  },
+  "network_profiles": {
+    "LAN-like": {
+      "rtt_ms": 20,
+      "bandwidth_mbps": 500
+    },
+    "No-Throttle": {
+      "rtt_ms": 0,
+      "bandwidth_mbps": 0
+    }
+  },
+  "deliveries": {
+    "edge_server": {
+      "delivery_role": "edge",
+      "asset_url": "http://${EDGE_SERVER_HOST}:8090/examples/streaming-lod/coit-40m-sh1-lod.rad"
+    },
+    "remote_cos": {
+      "delivery_role": "remote",
+      "asset_url": "${REMOTE_COS_URL}"
+    }
+  },
+  "phases": {
+    "dls-main-burst-cos-n5": {
+      "delivery": "remote_cos",
+      "trace": "burst_turn",
+      "baselines": [
+        "spark_od",
+        "dls",
+        "dls_l",
+        "dls_a"
+      ],
+      "trials_per_baseline": 5,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "no_fallback": true
+      }
+    },
+    "dls-trace-robustness-gated": {
+      "delivery": "remote_cos",
+      "baselines": [
+        "spark_od",
+        "dls"
+      ],
+      "trials_per_baseline": 3,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "traces": [
+        "orbit",
+        "stop_go",
+        "burst_turn",
+        "random_walk"
+      ],
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "no_fallback": true
+      }
+    },
+    "dls-safety-strict-gate": {
+      "delivery": "remote_cos",
+      "trace": "burst_turn",
+      "baselines": [
+        "spark_od",
+        "dls"
+      ],
+      "trials_per_baseline": 3,
+      "startup_mode": "cold_start",
+      "warmup_mode": "none",
+      "interleave": true,
+      "network_profiles": [
+        "LAN-like",
+        "No-Throttle"
+      ],
+      "protocol": {
+        "browser_profile": "fresh_per_trial",
+        "no_fallback": true
+      }
+    }
+  }
+}

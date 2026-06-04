@@ -1,6 +1,6 @@
 /**
  * Local proxy that forwards each HTTP request to an upstream origin (e.g. HPC
- * ${EDGE_SERVER_HOST}:8090) and logs full server-side timings per request.
+ * LAN edge upstream, e.g. ${EDGE_SERVER_HOST}:8090) and logs full server-side timings per request.
  *
  * Produces the same `server_monitor/server_request_log.jsonl` row schema as
  * MonitoredAssetServer so downstream summarizers (local_stutter_server_summary)

@@ -12,19 +12,7 @@ const probeJs = readFileSync(path.join(__dirname, "ablation_page_probe.js"), "ut
 const startupJs = readFileSync(path.join(__dirname, "ablation_startup_timeline.js"), "utf8");
 const vrcOptJs = readFileSync(path.join(__dirname, "vrc_opt_runtime.js"), "utf8");
 const proactiveChunkProbeJs = readFileSync(path.join(__dirname, "proactive_chunk_probe.js"), "utf8");
-const readyModuleNames = [
-  "ready_core.js",
-  "ready_prediction.js",
-  "ready_readiness.js",
-  "ready_delivery.js",
-  "ready_schedulers.js",
-  "ready_controller.js",
-];
-const readyModulesJs = readyModuleNames
-  .map((f) => readFileSync(path.join(__dirname, "ready", f), "utf8"))
-  .join("\n");
-const proactivePrefetchJs = readFileSync(path.join(__dirname, "proactive_prefetch_controller.js"), "utf8");
-const proactiveWorkerJs = readFileSync(path.join(__dirname, "proactive_prefetch_worker.js"), "utf8");
+// DLS artifact: chunk timing probe only (no READY / proactive prefetch stack).
 
 function applyDiagnosticImportMap(html) {
   const THREE_LOCAL = "/node_modules/three/build/three.module.js";
@@ -105,14 +93,9 @@ export async function buildAblationHtml({
     `renderer.setPixelRatio(${pixelRatioCode});`,
   );
 
-  const proactiveWrap = proactiveBaselineCode
-    ? `
+  const proactiveWrap = `
 ${proactiveChunkProbeJs}
-${readyModulesJs}
-(function(){try{window.__proactivePrefetchWorkerUrl=URL.createObjectURL(new Blob([${JSON.stringify(proactiveWorkerJs)}],{type:"application/javascript"}));}catch(e){console.warn("prefetch worker blob",e);}})();
-${proactivePrefetchJs}
-`
-    : "";
+`;
 
   const ablationWrap = `
 ${probeJs}

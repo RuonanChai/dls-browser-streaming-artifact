@@ -82,7 +82,7 @@ function readyTimeForChunk(ch, policy = "parse_or_upload", parseFallbackMs = 0) 
   return { t: null, ev: null };
 }
 
-export function enrichProactiveFromCdp(proactiveSnap, cdpRows, opts = {}) {
+export function enrichChunkSnapFromCdp(proactiveSnap, cdpRows, opts = {}) {
   const {
     referenceDemand = null,
     assetUrlHint = "",
@@ -288,3 +288,5 @@ export function cdpRad206Count(cdpRows) {
     (r) => /\.rad(\?|#|$)/i.test(r.url || "") && Number(r.status) === 206 && r.range_header,
   ).length;
 }
+
+export { enrichChunkSnapFromCdp as enrichProactiveFromCdp };
